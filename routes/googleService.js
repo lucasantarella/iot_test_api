@@ -43,6 +43,57 @@ googleApp.onSync((body, headers) => {
   })
 });
 
+// Execute Action
+googleApp.onExecute((body, headers) => {
+  let promises = [];
+
+  let payload = body.inputs[0].payload;
+
+  // Iterate over all commands and process them
+  payload.commands.forEach((command, index, array) => {
+    // Get the ids
+    let device_ids = [];
+    command.devices.forEach(value => {
+      device_ids.push(value.id);
+    });
+
+    // Iterate over all devices, executing the commands on them
+    promises.push(db.collection('devices').find({"id": {$in: device_ids}}, {projection: {id: 1}}).toArray().then(docs => {
+      let device_promises = [];
+      _.each(docs, (el, index) => {
+        device_promises.push(connection.session.call('com.lucasantarella.iot.devices.' + el.id + '.execute', command.execution));
+      });
+
+      // Wait for all to complete
+      return Promise.all(device_promises).then(states => {
+        return new Promise(fulfill => {
+          let resp = [];
+          _.each(states, (state, index) => {
+            resp.push({
+              ids: [docs[index].id],
+              status: "SUCCESS",
+              states: state
+            });
+          });
+          fulfill(resp);
+        })
+      })
+    }));
+  });
+
+  // Return a promise that resolves into the desired format
+  return Promise.all(promises).then(values => {
+    return new Promise(function (fulfill, reject) {
+      fulfill({
+        requestId: uuidv4(),
+        payload: {
+          commands: [].concat.apply([], values)
+        }
+      })
+    })
+  })
+});
+
 
 // Query Action
 googleApp.onQuery((body, headers) => {
@@ -56,12 +107,9 @@ googleApp.onQuery((body, headers) => {
       });
 
       let statuses = {};
-      Promise.all(promises).then(values => {
-        _.each(values, function (status, index, list) {
-          statuses[docs[index].id] = {
-            "online": true,
-            "on": status == 1
-          };
+      Promise.all(promises).then(states => {
+        _.each(states, function (state, index, list) {
+          statuses[docs[index].id] = state;
         });
 
         fulfill({
