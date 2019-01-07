@@ -1,5 +1,5 @@
 'use strict';
-const { smarthome } = require('actions-on-google');
+const database = require('./database');
 const createError = require('http-errors');
 const express = require('express');
 const session = require('express-session');
@@ -8,14 +8,17 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const autobahn = require('autobahn');
+const uuidv4 = require('uuid/v4');
 const datastore = require('./datastore');
+
+// env
 const ws_host = process.env.WS_HOST || 'iot.lucasantarella.com';
 const ws_realm = process.env.WS_REALM || 'com.lucasantarella.iot';
 const ws_port = process.env.WS_PORT || '9443';
 const ws_wss = process.env.WS_WSS || 'wss';
-const uuidv4 = require('uuid/v4');
 
 const indexRouter = require('./routes/index');
+const googleApp = require('./routes/googleService');
 const oauthRouter = require('./routes/oauth');
 
 const app = express();
@@ -32,6 +35,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Parsers
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
+
+// MongoDB
+let db;
+database.getConnection().then(client => {
+  db = client.db(process.env.MONGO_DB);
+});
+app.use(function (req, res, next) {
+  req.db = db;
+  next();
+});
 
 // Session
 app.use(session({
@@ -70,20 +83,6 @@ app.use('/', indexRouter);
 app.use('/auth', oauthRouter);
 
 // Fullfillment
-
-// Create an app instance
-const googleApp = smarthome({
-  debug: true
-});
-
-googleApp.onSync((body, headers) => {
-  return {
-    requestId: 'ff36...',
-    payload: {
-      ...
-    }
-  }
-});
 app.post('/fullfillment', googleApp);
 
 // catch 404 and forward to error handler
