@@ -129,7 +129,9 @@ router.post('/token', function (req, res, next) {
           refresh_token: req.body.refresh_token,
           client_id: req.body.client_id
         }).exec().then(refresh_token => {
-          // TODO: Check for expiry
+          // token expiry
+          if (refresh_token.expires >= new Date())
+            return res.send('The refresh token has expired', 401);
 
           // get the access token from the refresh token
           AccessTokensModel.findOne({
