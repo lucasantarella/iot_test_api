@@ -1,28 +1,32 @@
 const express = require('express');
 const router = express.Router();
-const Backbone = require('backbone');
+const models = require('../models');
 
 /* GET home page. */
 router.get('/devices', function (req, res, next) {
-  req.db.collection('devices').find({}, {projection: {_id: 0}}).toArray().then(value => {
+  // Query devices and respond
+  models.DeviceModel.find({}, {_id: 0}).exec().then(value => {
     res.json(value)
   });
 });
 router.get('/devices/:deviceId', function (req, res, next) {
-  let model = req.datastore.Devices.findWhere({uuid: req.params.deviceId});
-  if (model !== undefined)
-    res.json(model);
-  else
-    res.send('', 404);
+  // Query device and respond
+  models.DeviceModel.findOne({id: req.params.deviceId}, {_id: 0}).exec().then(value => {
+      res.json(value)
+    },
+    err => {
+      // TODO: Fix this
+      next(err)
+    });
 });
 router.post('/devices', function (req, res, next) {
-  req.db.collection('devices').findOneAndUpdate({id: req.body.id}, req.body, {
+  models.DeviceModel.findOneAndUpdate({id: req.body.id}, req.body, {
     upsert: true,
     projection: {_id: 0}
   }).then(value => {
     res.send(value)
-  }, reason => {
-    console.log(reason)
+  }, err => {
+    console.log(err)
   });
 });
 

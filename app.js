@@ -39,7 +39,7 @@ app.use(bodyParser.urlencoded({extended: false}));
 // MongoDB
 let db;
 database.getConnection().then(client => {
-  db = client.db(process.env.MONGO_DB);
+  db = client
 });
 app.use(function (req, res, next) {
   req.db = db;

@@ -1,30 +1,18 @@
-const MongoClient = require('mongodb').MongoClient;
-let _db;
-module.exports = {
-  getConnection: function (callback) {
-    return MongoClient.connect('mongodb://' + process.env.MONGO_USER + ':' + process.env.MONGO_PASS + '@' + process.env.MONGO_HOST, {
-      reconnectTries: Number.MAX_VALUE,
-      autoReconnect: true,
-      useNewUrlParser: true
-    }).then(client => {
-      _db = client;
-      if (typeof callback === "function")
-        callback(undefined, client);
-      else
-        return new Promise(function (fulfill, error) {
-          fulfill(client)
-        });
-    }, reason => {
-      if (typeof callback === "function")
-        callback(reason);
-      else
-        return new Promise(function (fulfill, error) {
-          error(reason)
-        });
-    });
-  },
+const mongoose = require('mongoose');
 
-  getDb: function () {
-    return _db;
+let _conn;
+
+module.exports = {
+  getConnection: () => {
+    if (_conn === undefined) {
+      _conn = mongoose.createConnection('mongodb://' + process.env.MONGO_USER + ':' + process.env.MONGO_PASS + '@' + process.env.MONGO_HOST,
+        {
+          keepAlive: true,
+          keepAliveInitialDelay: 300000,
+          useNewUrlParser: true,
+          dbName: process.env.MONGO_DB
+        });
+    }
+    return _conn;
   }
 };

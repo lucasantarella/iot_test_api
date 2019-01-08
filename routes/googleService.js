@@ -12,7 +12,7 @@ const googleApp = smarthome({
 // Setup DB Connection
 let db;
 database.getConnection().then(client => {
-  db = client.db(process.env.MONGO_DB)
+  db = client
 });
 
 // env
