@@ -9,7 +9,6 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const autobahn = require('autobahn');
 const uuidv4 = require('uuid/v4');
-const datastore = require('./datastore');
 
 // env
 const ws_host = process.env.WS_HOST || 'iot.lucasantarella.com';
@@ -70,12 +69,6 @@ connection.onopen = function (session) {
 };
 app.use(function (req, res, next) {
   req.ws_connection = connection;
-  next();
-});
-
-// attach datastore
-app.use(function (req, res, next) {
-  req.datastore = datastore;
   next();
 });
 

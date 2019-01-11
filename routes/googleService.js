@@ -29,7 +29,7 @@ connection.open();
 
 // Sync Action
 googleApp.onSync((body, headers) => {
-  return db.collection('devices').find({}, {projection: {_id: 0}}).toArray().then(value => {
+  return db.collection('devices').find({}, {projection: {_id: 0, __v: 0}}).toArray().then(value => {
     return new Promise(function (fulfill, reject) {
       fulfill({
         requestId: body.requestId,
