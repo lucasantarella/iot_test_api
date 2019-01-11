@@ -1,5 +1,4 @@
 const database = require('./../database');
-const uuidv4 = require('uuid/v4');
 const autobahn = require('autobahn');
 const _ = require('underscore');
 const {smarthome} = require('actions-on-google');
@@ -33,7 +32,7 @@ googleApp.onSync((body, headers) => {
   return db.collection('devices').find({}, {projection: {_id: 0}}).toArray().then(value => {
     return new Promise(function (fulfill, reject) {
       fulfill({
-        requestId: uuidv4(),
+        requestId: body.requestId,
         payload: {
           agentUserId: 'lucasantarella',
           devices: value
@@ -61,7 +60,17 @@ googleApp.onExecute((body, headers) => {
     promises.push(db.collection('devices').find({"id": {$in: device_ids}}, {projection: {id: 1}}).toArray().then(docs => {
       let device_promises = [];
       _.each(docs, (el, index) => {
-        device_promises.push(connection.session.call('com.lucasantarella.iot.devices.' + el.id + '.execute', command.execution));
+        device_promises.push(new Promise((fulfill, reject) => {
+          connection.session.call('com.lucasantarella.iot.devices.' + el.id + '.execute', command.execution).then((state) => {
+            // on success, report back
+            fulfill(state);
+          }).catch(() => {
+            // otherwise, report back that device is offline
+            fulfill({
+              online: false
+            })
+          })
+        }));
       });
 
       // Wait for all to complete
@@ -69,11 +78,18 @@ googleApp.onExecute((body, headers) => {
         return new Promise(fulfill => {
           let resp = [];
           _.each(states, (state, index) => {
-            resp.push({
-              ids: [docs[index].id],
-              status: "SUCCESS",
-              states: state
-            });
+            if (state.online)
+              resp.push({
+                ids: [docs[index].id],
+                status: "SUCCESS",
+                states: state
+              });
+            else
+              resp.push({
+                ids: [docs[index].id],
+                status: "OFFLINE",
+                // states: state
+              });
           });
           fulfill(resp);
         })
@@ -85,7 +101,7 @@ googleApp.onExecute((body, headers) => {
   return Promise.all(promises).then(values => {
     return new Promise(function (fulfill, reject) {
       fulfill({
-        requestId: uuidv4(),
+        requestId: body.requestId,
         payload: {
           commands: [].concat.apply([], values)
         }
@@ -103,7 +119,17 @@ googleApp.onQuery((body, headers) => {
       // Check all of their statuses with autobahn
       let promises = [];
       _.each(docs, function (el) {
-        promises.push(connection.session.call('com.lucasantarella.iot.devices.' + el.id + '.status'));
+        promises.push(new Promise((fulfill, reject) => {
+          connection.session.call('com.lucasantarella.iot.devices.' + el.id + '.status').then((state) => {
+            // on success, report back
+            fulfill(state);
+          }).catch(() => {
+            // otherwise, report back that device is offline
+            fulfill({
+              online: false
+            })
+          })
+        }));
       });
 
       let statuses = {};
@@ -113,7 +139,7 @@ googleApp.onQuery((body, headers) => {
         });
 
         fulfill({
-          requestId: uuidv4(),
+          requestId: body.requestId,
           payload: {
             devices: statuses
           }
